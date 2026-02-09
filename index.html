@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>3 Player Rock Paper Scissors</title>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  onSnapshot 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// 🔥 YOUR CONFIG HERE
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_PROJECT_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let gameId = "game1";
+let playerRole = null;
+const gameRef = doc(db, "games", gameId);
+
+// Join Game
+window.joinGame = async function(role) {
+  playerRole = role;
+  document.getElementById("status").innerText = "You are " + role;
+
+  // Ensure scores exist
+  await setDoc(gameRef, {
+    scores: {
+      player1: 0,
+      player2: 0,
+      player3: 0
+    }
+  }, { merge: true });
+};
+
+// Play Move
+window.playMove = async function(choice) {
+  if (!playerRole) {
+    alert("Join first.");
+    return;
+  }
+
+  await setDoc(gameRef, {
+    moves: {
+      [playerRole]: choice
+    }
+  }, { merge: true });
+};
+
+// Listen for updates
+onSnapshot(gameRef, async (docSnap) => {
+  if (!docSnap.exists()) return;
+
+  const data = docSnap.data();
+  const moves = data.moves || {};
+  const scores = data.scores || {};
+
+  document.getElementById("scores").innerText =
+    `Scores:
+     P1: ${scores.player1 || 0}
+     P2: ${scores.player2 || 0}
+     P3: ${scores.player3 || 0}`;
+
+  if (moves.player1 && moves.player2 && moves.player3) {
+    const result = determineWinner(moves);
+    document.getElementById("result").innerText = result.text;
+
+    if (result.winners.length > 0) {
+      const newScores = { ...scores };
+      result.winners.forEach(winner => {
+        newScores[winner] = (newScores[winner] || 0) + 1;
+      });
+
+      await updateDoc(gameRef, { scores: newScores });
+    }
+
+    // Reset moves after short delay
+    setTimeout(async () => {
+      await updateDoc(gameRef, { moves: {} });
+    }, 2000);
+  }
+});
+
+// Determine winner
+function determineWinner(moves) {
+  const values = Object.values(moves);
+  const unique = [...new Set(values)];
+
+  if (unique.length === 1 || unique.length === 3) {
+    return { text: "Tie!", winners: [] };
+  }
+
+  const beats = {
+    Rock: "Scissors",
+    Scissors: "Paper",
+    Paper: "Rock"
+  };
+
+  const [a, b] = unique;
+
+  if (beats[a] === b) {
+    const winners = Object.keys(moves).filter(p => moves[p] === a);
+    return { text: winners.join(", ") + " win!", winners };
+  } else {
+    const winners = Object.keys(moves).filter(p => moves[p] === b);
+    return { text: winners.join(", ") + " win!", winners };
+  }
+}
+
+</script>
+</head>
+
+<body>
+<h1>3 Player Rock Paper Scissors</h1>
+
+<button onclick="joinGame('player1')">Join Player 1</button>
+<button onclick="joinGame('player2')">Join Player 2</button>
+<button onclick="joinGame('player3')">Join Player 3</button>
+
+<br><br>
+
+<button onclick="playMove('Rock')">Rock</button>
+<button onclick="playMove('Paper')">Paper</button>
+<button onclick="playMove('Scissors')">Scissors</button>
+
+<h3 id="status"></h3>
+<h3 id="scores"></h3>
+<h3 id="result"></h3>
+
+</body>
+</html>
