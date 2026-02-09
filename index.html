@@ -3,18 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <title>3 Player Rock Paper Scissors</title>
-
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }
+  button { padding: 12px 20px; font-size: 16px; margin: 10px; cursor: pointer; }
+  .join-btn { background-color: green; color: white; }
+  .joined { background-color: red; color: white; }
+  #moves-status { margin-top: 20px; font-size: 16px; }
+  #scores, #result, #choices-output { margin-top: 20px; font-size: 18px; font-weight: bold; }
+</style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  onSnapshot 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// 🔥 YOUR CONFIG HERE
+// 🔥 YOUR FIREBASE CONFIG HERE
 const firebaseConfig = {
 
   apiKey: "AIzaSyAavjBl8_7rzWtXlEXLFxrn30lqteoA_aw",
@@ -41,113 +42,112 @@ let playerRole = null;
 const gameRef = doc(db, "games", gameId);
 
 // Join Game
-window.joinGame = async function(role) {
+window.joinGame = async function(role, btn) {
   playerRole = role;
   document.getElementById("status").innerText = "You are " + role;
 
+  // Highlight the selected join button
+  document.querySelectorAll('.join-btn').forEach(b => b.classList.remove('joined'));
+  btn.classList.add('joined');
+
   // Ensure scores exist
   await setDoc(gameRef, {
-    scores: {
-      player1: 0,
-      player2: 0,
-      player3: 0
-    }
+    scores: { player1: 0, player2: 0, player3: 0 }
   }, { merge: true });
 };
 
 // Play Move
 window.playMove = async function(choice) {
   if (!playerRole) {
-    alert("Join first.");
+    alert("Join a player first!");
     return;
   }
 
+  // Record move in Firestore
   await setDoc(gameRef, {
-    moves: {
-      [playerRole]: choice
-    }
+    moves: { [playerRole]: choice }
   }, { merge: true });
 };
 
-// Listen for updates
+// Listen for game updates
 onSnapshot(gameRef, async (docSnap) => {
   if (!docSnap.exists()) return;
-
   const data = docSnap.data();
   const moves = data.moves || {};
   const scores = data.scores || {};
 
+  // Update scores
   document.getElementById("scores").innerText =
-    `Scores:
-     P1: ${scores.player1 || 0}
-     P2: ${scores.player2 || 0}
-     P3: ${scores.player3 || 0}`;
+    `Scores:\nP1: ${scores.player1 || 0}  P2: ${scores.player2 || 0}  P3: ${scores.player3 || 0}`;
 
+  // Show visual cue of who has chosen
+  let movesStatus = '';
+  for (let p of ['player1', 'player2', 'player3']) {
+    movesStatus += `${p}: ${moves[p] ? 'Selected ✅' : 'Waiting…'}\n`;
+  }
+  document.getElementById("moves-status").innerText = movesStatus;
+
+  // Check if all moves are made
   if (moves.player1 && moves.player2 && moves.player3) {
     const result = determineWinner(moves);
     document.getElementById("result").innerText = result.text;
 
+    // Show what each player chose after the round
+    document.getElementById("choices-output").innerText =
+      `Choices:\nP1: ${moves.player1}\nP2: ${moves.player2}\nP3: ${moves.player3}`;
+
+    // Update scores
     if (result.winners.length > 0) {
       const newScores = { ...scores };
       result.winners.forEach(winner => {
         newScores[winner] = (newScores[winner] || 0) + 1;
       });
-
       await updateDoc(gameRef, { scores: newScores });
     }
 
-    // Reset moves after short delay
+    // Reset moves for next round after short delay
     setTimeout(async () => {
       await updateDoc(gameRef, { moves: {} });
-    }, 2000);
+      document.getElementById("result").innerText = '';
+      document.getElementById("choices-output").innerText = '';
+    }, 3000);
   }
 });
 
-// Determine winner
+// Determine winner logic for 3 players
 function determineWinner(moves) {
   const values = Object.values(moves);
   const unique = [...new Set(values)];
 
-  if (unique.length === 1 || unique.length === 3) {
-    return { text: "Tie!", winners: [] };
-  }
+  if (unique.length === 1 || unique.length === 3) return { text: "Tie!", winners: [] };
 
-  const beats = {
-    Rock: "Scissors",
-    Scissors: "Paper",
-    Paper: "Rock"
-  };
-
+  const beats = { Rock: "Scissors", Paper: "Rock", Scissors: "Paper" };
   const [a, b] = unique;
 
-  if (beats[a] === b) {
-    const winners = Object.keys(moves).filter(p => moves[p] === a);
-    return { text: winners.join(", ") + " win!", winners };
-  } else {
-    const winners = Object.keys(moves).filter(p => moves[p] === b);
-    return { text: winners.join(", ") + " win!", winners };
-  }
+  const winners = Object.keys(moves).filter(p => moves[p] === (beats[a] === b ? a : b));
+  return { text: winners.join(", ") + " win!", winners };
 }
-
 </script>
 </head>
 
 <body>
 <h1>3 Player Rock Paper Scissors</h1>
 
-<button onclick="joinGame('player1')">Join Player 1</button>
-<button onclick="joinGame('player2')">Join Player 2</button>
-<button onclick="joinGame('player3')">Join Player 3</button>
+<h3>Select a player number:</h3>
+<button class="join-btn" onclick="joinGame('player1', this)">Player 1</button>
+<button class="join-btn" onclick="joinGame('player2', this)">Player 2</button>
+<button class="join-btn" onclick="joinGame('player3', this)">Player 3</button>
 
-<br><br>
-
+<h3>Select Rock, Paper, or Scissors:</h3>
 <button onclick="playMove('Rock')">Rock</button>
 <button onclick="playMove('Paper')">Paper</button>
 <button onclick="playMove('Scissors')">Scissors</button>
 
 <h3 id="status"></h3>
+<pre id="moves-status"></pre>
 <h3 id="scores"></h3>
 <h3 id="result"></h3>
+<pre id="choices-output"></pre>
 
 </body>
 </html>
