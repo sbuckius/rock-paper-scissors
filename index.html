@@ -2,21 +2,83 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Rock Paper Scissors (2-3 Players)</title>
+<title>Rock Paper Scissors (Cute Style)</title>
 <style>
-  body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }
-  button { padding: 12px 20px; font-size: 16px; margin: 10px; cursor: pointer; }
-  .join-btn { background-color: green; color: white; }
-  .joined { background-color: red; color: white; }
-  #moves-status { margin-top: 20px; font-size: 16px; }
-  #scores, #result, #choices-output { margin-top: 20px; font-size: 18px; font-weight: bold; }
-  #player-select { margin-bottom: 30px; }
+  /* Cute pastel aesthetic */
+  body {
+    font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+    text-align: center;
+    background: #fff0f5; /* light pink lavender background */
+    margin: 0;
+    padding: 20px;
+  }
+
+  h1 {
+    color: #ff69b4; /* hot pink */
+    font-size: 2.5em;
+    margin-bottom: 10px;
+  }
+
+  h3 {
+    color: #ff1493; /* deep pink */
+    margin-bottom: 5px;
+  }
+
+  button {
+    padding: 12px 24px;
+    font-size: 16px;
+    margin: 10px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+  }
+
+  button:hover {
+    transform: scale(1.1);
+    box-shadow: 4px 4px 10px rgba(0,0,0,0.3);
+  }
+
+  .join-btn {
+    background-color: #90ee90; /* pastel green */
+    color: #fff;
+  }
+
+  .joined {
+    background-color: #ff7f7f !important; /* pastel red */
+  }
+
+  button.move-btn {
+    background-color: #ffd1dc; /* pastel pink */
+    color: #ff1493;
+  }
+
+  button.move-btn:hover {
+    background-color: #ffb6c1; /* lighter pink on hover */
+  }
+
+  #moves-status, #scores, #result, #choices-output {
+    margin-top: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #ff69b4;
+  }
+
+  #player-select, #join-buttons, #controls {
+    margin: 20px 0;
+  }
+
+  pre {
+    font-family: 'Comic Sans MS', cursive;
+    color: #ff69b4;
+  }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// 🔥 Firebase config
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAavjBl8_7rzWtXlEXLFxrn30lqteoA_aw",
   authDomain: "rock-paper-scissor-f380a.firebaseapp.com",
@@ -32,7 +94,7 @@ const db = getFirestore(app);
 
 let gameId = "game1";
 let playerRole = null;
-let totalPlayers = 0; // 2 or 3
+let totalPlayers = 0;
 const gameRef = doc(db, "games", gameId);
 
 // Select number of players
@@ -40,7 +102,7 @@ window.selectPlayers = async function(num) {
   totalPlayers = num;
   document.getElementById('player-select').style.display = 'none';
   const joinContainer = document.getElementById('join-buttons');
-  joinContainer.innerHTML = ''; // clear existing buttons
+  joinContainer.innerHTML = '';
   for (let i = 1; i <= num; i++) {
     const btn = document.createElement('button');
     btn.className = 'join-btn';
@@ -60,7 +122,6 @@ window.joinGame = async function(role, btn) {
   playerRole = role;
   document.getElementById("status").innerText = "You are " + role;
 
-  // Highlight the selected join button
   document.querySelectorAll('.join-btn').forEach(b => b.classList.remove('joined'));
   btn.classList.add('joined');
 };
@@ -68,7 +129,6 @@ window.joinGame = async function(role, btn) {
 // Play Move
 window.playMove = async function(choice) {
   if (!playerRole) { alert("Join a player first!"); return; }
-
   await setDoc(gameRef, { moves: { [playerRole]: choice } }, { merge: true });
 };
 
@@ -96,11 +156,9 @@ onSnapshot(gameRef, async (docSnap) => {
   const moves = data.moves || {};
   const scores = data.scores || {};
 
-  // Update scores
   document.getElementById("scores").innerText =
     `Scores:\n` + Object.keys(scores).map(p => `${p.toUpperCase()}: ${scores[p]}`).join('  ');
 
-  // Show visual cue of who has chosen
   let movesStatus = '';
   for (let i = 1; i <= totalPlayers; i++) {
     const p = `player${i}`;
@@ -108,24 +166,20 @@ onSnapshot(gameRef, async (docSnap) => {
   }
   document.getElementById("moves-status").innerText = movesStatus;
 
-  // Check if all joined players have selected
   const selectedMoves = Object.keys(moves).length;
   if (selectedMoves === totalPlayers) {
     const result = determineWinner(moves);
     document.getElementById("result").innerText = result.text;
 
-    // Show each player's choice
     document.getElementById("choices-output").innerText =
       `Choices:\n` + Object.keys(moves).map(p => `${p}: ${moves[p]}`).join('\n');
 
-    // Update scores
     if (result.winners.length > 0) {
       const newScores = { ...scores };
       result.winners.forEach(winner => newScores[winner] = (newScores[winner] || 0) + 1);
       await updateDoc(gameRef, { scores: newScores });
     }
 
-    // Reset moves for next round after delay
     setTimeout(async () => {
       await updateDoc(gameRef, { moves: {} });
       document.getElementById("result").innerText = '';
@@ -151,7 +205,7 @@ function determineWinner(moves) {
 </head>
 
 <body>
-<h1>Rock Paper Scissors (2-3 Players)</h1>
+<h1>Rock Paper Scissors 🎀</h1>
 
 <div id="player-select">
   <h3>Select number of players:</h3>
@@ -162,12 +216,14 @@ function determineWinner(moves) {
 <div id="join-buttons"></div>
 
 <h3>Select Rock, Paper, or Scissors:</h3>
-<button onclick="playMove('Rock')">Rock</button>
-<button onclick="playMove('Paper')">Paper</button>
-<button onclick="playMove('Scissors')">Scissors</button>
+<button class="move-btn" onclick="playMove('Rock')">🌸 Rock</button>
+<button class="move-btn" onclick="playMove('Paper')">🍒 Paper</button>
+<button class="move-btn" onclick="playMove('Scissors')">🍥 Scissors</button>
 
-<h3>Controls:</h3>
-<button onclick="newGame()">New Game</button>
+<div id="controls">
+  <h3>Controls:</h3>
+  <button onclick="newGame()">✨ New Game ✨</button>
+</div>
 
 <h3 id="status"></h3>
 <pre id="moves-status"></pre>
