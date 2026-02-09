@@ -188,18 +188,40 @@ onSnapshot(gameRef, async (docSnap) => {
   }
 });
 
-// Determine winner logic for 2 or 3 players
+// Fixed winner logic for 2 or 3 players
 function determineWinner(moves) {
-  const values = Object.values(moves);
-  const unique = [...new Set(values)];
-
-  if (unique.length === 1 || unique.length === values.length) return { text: "Tie!", winners: [] };
-
   const beats = { Rock: "Scissors", Paper: "Rock", Scissors: "Paper" };
-  const [a, b] = unique.length === 2 ? unique : [unique[0], unique[1]];
+  const moveCounts = {};
+  const winners = [];
 
-  const winners = Object.keys(moves).filter(p => moves[p] === (beats[a] === b ? a : b));
-  return { text: winners.join(", ") + " win!", winners };
+  Object.values(moves).forEach(move => {
+    moveCounts[move] = (moveCounts[move] || 0) + 1;
+  });
+
+  const uniqueMoves = Object.keys(moveCounts);
+
+  if (uniqueMoves.length === 1) {
+    return { text: "Tie!", winners: [] };
+  }
+
+  if (uniqueMoves.length === 3) {
+    return { text: "Tie!", winners: [] };
+  }
+
+  if (uniqueMoves.length === 2) {
+    const [moveA, moveB] = uniqueMoves;
+    let winningMove;
+    if (beats[moveA] === moveB) winningMove = moveA;
+    else winningMove = moveB;
+
+    Object.keys(moves).forEach(player => {
+      if (moves[player] === winningMove) winners.push(player);
+    });
+
+    return { text: winners.join(", ") + " win!", winners };
+  }
+
+  return { text: "Tie!", winners: [] };
 }
 </script>
 </head>
