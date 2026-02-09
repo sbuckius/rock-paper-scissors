@@ -15,23 +15,15 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// 🔥 YOUR FIREBASE CONFIG HERE
+// 🔥 YOUR FIREBASE CONFIG
 const firebaseConfig = {
-
   apiKey: "AIzaSyAavjBl8_7rzWtXlEXLFxrn30lqteoA_aw",
-
   authDomain: "rock-paper-scissor-f380a.firebaseapp.com",
-
   projectId: "rock-paper-scissor-f380a",
-
   storageBucket: "rock-paper-scissor-f380a.firebasestorage.app",
-
   messagingSenderId: "854369078304",
-
   appId: "1:854369078304:web:50e5167370bc99536a0045",
-
   measurementId: "G-PPY3L3ZCLN"
-
 };
 
 const app = initializeApp(firebaseConfig);
@@ -67,6 +59,24 @@ window.playMove = async function(choice) {
   await setDoc(gameRef, {
     moves: { [playerRole]: choice }
   }, { merge: true });
+};
+
+// New Game
+window.newGame = async function() {
+  await setDoc(gameRef, {
+    scores: { player1: 0, player2: 0, player3: 0 },
+    moves: {}
+  }, { merge: true });
+
+  document.getElementById("result").innerText = '';
+  document.getElementById("choices-output").innerText = '';
+  document.getElementById("moves-status").innerText = '';
+  document.getElementById("status").innerText = playerRole ? `You are ${playerRole}` : '';
+  document.querySelectorAll('.join-btn').forEach(b => b.classList.remove('joined'));
+  if (playerRole) {
+    const btn = document.querySelector(`.join-btn[onclick*="${playerRole}"]`);
+    if (btn) btn.classList.add('joined');
+  }
 };
 
 // Listen for game updates
@@ -142,6 +152,9 @@ function determineWinner(moves) {
 <button onclick="playMove('Rock')">Rock</button>
 <button onclick="playMove('Paper')">Paper</button>
 <button onclick="playMove('Scissors')">Scissors</button>
+
+<h3>Controls:</h3>
+<button onclick="newGame()">New Game</button>
 
 <h3 id="status"></h3>
 <pre id="moves-status"></pre>
