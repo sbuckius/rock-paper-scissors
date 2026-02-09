@@ -4,75 +4,35 @@
 <meta charset="UTF-8">
 <title>Rock Paper Scissors (Cute Style)</title>
 <style>
-  /* Cute pastel aesthetic */
-  body {
-    font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
-    text-align: center;
-    background: #fff0f5; /* light pink lavender background */
-    margin: 0;
-    padding: 20px;
-  }
+body {
+  font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+  text-align: center;
+  background: #fff0f5;
+  margin: 0;
+  padding: 20px;
+}
+h1 { color: #ff69b4; font-size: 2.5em; margin-bottom: 10px; }
+h3 { color: #ff1493; margin-bottom: 5px; }
+button {
+  padding: 12px 24px;
+  font-size: 16px;
+  margin: 10px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+}
+button:hover { transform: scale(1.1); box-shadow: 4px 4px 10px rgba(0,0,0,0.3); }
+.join-btn { background-color: #90ee90; color: #fff; }
+.joined { background-color: #ff7f7f !important; }
+button.move-btn { background-color: #ffd1dc; color: #ff1493; }
+button.move-btn:hover { background-color: #ffb6c1; }
 
-  h1 {
-    color: #ff69b4; /* hot pink */
-    font-size: 2.5em;
-    margin-bottom: 10px;
-  }
-
-  h3 {
-    color: #ff1493; /* deep pink */
-    margin-bottom: 5px;
-  }
-
-  button {
-    padding: 12px 24px;
-    font-size: 16px;
-    margin: 10px;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
-  }
-
-  button:hover {
-    transform: scale(1.1);
-    box-shadow: 4px 4px 10px rgba(0,0,0,0.3);
-  }
-
-  .join-btn {
-    background-color: #90ee90; /* pastel green */
-    color: #fff;
-  }
-
-  .joined {
-    background-color: #ff7f7f !important; /* pastel red */
-  }
-
-  button.move-btn {
-    background-color: #ffd1dc; /* pastel pink */
-    color: #ff1493;
-  }
-
-  button.move-btn:hover {
-    background-color: #ffb6c1; /* lighter pink on hover */
-  }
-
-  #moves-status, #scores, #result, #choices-output {
-    margin-top: 20px;
-    font-size: 18px;
-    font-weight: bold;
-    color: #ff69b4;
-  }
-
-  #player-select, #join-buttons, #controls {
-    margin: 20px 0;
-  }
-
-  pre {
-    font-family: 'Comic Sans MS', cursive;
-    color: #ff69b4;
-  }
+#moves-status, #scores, #choices-output { margin-top: 20px; font-size: 18px; font-weight: bold; color: #ff69b4; }
+#winner-text { margin-top: 20px; font-size: 36px; font-weight: bold; color: #ff1493; text-shadow: 2px 2px 10px #ffb6c1, 0 0 20px #ff69b4; }
+#player-select, #join-buttons, #controls { margin: 20px 0; }
+pre { font-family: 'Comic Sans MS', cursive; color: #ff69b4; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -95,6 +55,7 @@ const db = getFirestore(app);
 let gameId = "game1";
 let playerRole = null;
 let totalPlayers = 0;
+let roundActive = false; // <-- prevents repeated score increments
 const gameRef = doc(db, "games", gameId);
 
 // Select number of players
@@ -110,15 +71,11 @@ window.selectPlayers = async function(num) {
     btn.onclick = () => joinGame(`player${i}`, btn);
     joinContainer.appendChild(btn);
   }
-
-  // Initialize scores in Firestore
-  let scores = {};
-  for (let i = 1; i <= num; i++) scores[`player${i}`] = 0;
-  await setDoc(gameRef, { scores, moves: {} }, { merge: true });
+  await resetGameData();
 };
 
 // Join Game
-window.joinGame = async function(role, btn) {
+window.joinGame = function(role, btn) {
   playerRole = role;
   document.getElementById("status").innerText = "You are " + role;
 
@@ -129,25 +86,46 @@ window.joinGame = async function(role, btn) {
 // Play Move
 window.playMove = async function(choice) {
   if (!playerRole) { alert("Join a player first!"); return; }
+
+  // Instant UI update
+  const movesStatusEl = document.getElementById("moves-status");
+  const lines = movesStatusEl.innerText.split("\n");
+  const playerIndex = lines.findIndex(line => line.startsWith(playerRole));
+  if (playerIndex >= 0) lines[playerIndex] = `${playerRole}: Selected ✅`;
+  movesStatusEl.innerText = lines.join("\n");
+
+  // Save move to Firestore
   await setDoc(gameRef, { moves: { [playerRole]: choice } }, { merge: true });
 };
 
 // New Game
 window.newGame = async function() {
+  await resetGameData();
+  document.getElementById("winner-text").innerText = '';
+};
+
+// Reset game data helper
+async function resetGameData() {
   let scores = {};
   for (let i = 1; i <= totalPlayers; i++) scores[`player${i}`] = 0;
   await setDoc(gameRef, { scores, moves: {} }, { merge: true });
 
-  document.getElementById("result").innerText = '';
+  // Reset moves-status
+  const statusText = Array.from({ length: totalPlayers }, (_, i) => `player${i+1}: Waiting…`).join("\n");
+  document.getElementById("moves-status").innerText = statusText;
+
   document.getElementById("choices-output").innerText = '';
-  document.getElementById("moves-status").innerText = '';
-  document.getElementById("status").innerText = playerRole ? `You are ${playerRole}` : '';
+  document.getElementById("winner-text").innerText = '';
+  document.getElementById("scores").innerText = Object.keys(scores).map(p => `${p.toUpperCase()}: ${scores[p]}`).join('  ');
+
   document.querySelectorAll('.join-btn').forEach(b => b.classList.remove('joined'));
   if (playerRole) {
     const btn = Array.from(document.querySelectorAll('.join-btn')).find(b => b.innerText.includes(playerRole.slice(-1)));
     if (btn) btn.classList.add('joined');
   }
-};
+
+  roundActive = false; // allow new round
+}
 
 // Listen for game updates
 onSnapshot(gameRef, async (docSnap) => {
@@ -156,39 +134,49 @@ onSnapshot(gameRef, async (docSnap) => {
   const moves = data.moves || {};
   const scores = data.scores || {};
 
+  // Update scores display
   document.getElementById("scores").innerText =
     `Scores:\n` + Object.keys(scores).map(p => `${p.toUpperCase()}: ${scores[p]}`).join('  ');
 
-  let movesStatus = '';
-  for (let i = 1; i <= totalPlayers; i++) {
-    const p = `player${i}`;
-    movesStatus += `${p}: ${moves[p] ? 'Selected ✅' : 'Waiting…'}\n`;
-  }
-  document.getElementById("moves-status").innerText = movesStatus;
+  // Update moves status for other players
+  const movesStatusEl = document.getElementById("moves-status");
+  const lines = movesStatusEl.innerText.split("\n").map(line => {
+    const player = line.split(":")[0];
+    if (moves[player]) return `${player}: Selected ✅`;
+    return line;
+  });
+  movesStatusEl.innerText = lines.join("\n");
 
-  const selectedMoves = Object.keys(moves).length;
-  if (selectedMoves === totalPlayers) {
+  // Only process round once
+  if (!roundActive && Object.keys(moves).length === totalPlayers) {
+    roundActive = true; // mark round as processed
     const result = determineWinner(moves);
-    document.getElementById("result").innerText = result.text;
+    const winnerTextEl = document.getElementById("winner-text");
+    winnerTextEl.innerText = result.text;
 
     document.getElementById("choices-output").innerText =
       `Choices:\n` + Object.keys(moves).map(p => `${p}: ${moves[p]}`).join('\n');
 
+    // Update scores
     if (result.winners.length > 0) {
       const newScores = { ...scores };
-      result.winners.forEach(winner => newScores[winner] = (newScores[winner] || 0) + 1);
+      result.winners.forEach(w => newScores[w] = (newScores[w] || 0) + 1);
       await updateDoc(gameRef, { scores: newScores });
     }
 
+    // Reset moves after 3 seconds
     setTimeout(async () => {
       await updateDoc(gameRef, { moves: {} });
-      document.getElementById("result").innerText = '';
+      const statusText = Array.from({ length: totalPlayers }, (_, i) => `player${i+1}: Waiting…`).join("\n");
+      document.getElementById("moves-status").innerText = statusText;
       document.getElementById("choices-output").innerText = '';
+      winnerTextEl.innerText = '';
+      roundActive = false; // allow next round
     }, 3000);
   }
 });
 
-// Fixed winner logic for 2 or 3 players
+// Winner logic for 2 or 3 players
 function determineWinner(moves) {
   const beats = { Rock: "Scissors", Paper: "Rock", Scissors: "Paper" };
   const moveCounts = {};
@@ -200,32 +188,19 @@ function determineWinner(moves) {
 
   const uniqueMoves = Object.keys(moveCounts);
 
-  if (uniqueMoves.length === 1) {
-    return { text: "Tie!", winners: [] };
-  }
+  if (uniqueMoves.length === 1 || uniqueMoves.length === 3) return { text: "Tie! 💖", winners: [] };
 
-  if (uniqueMoves.length === 3) {
-    return { text: "Tie!", winners: [] };
-  }
+  const [moveA, moveB] = uniqueMoves;
+  const winningMove = beats[moveA] === moveB ? moveA : moveB;
 
-  if (uniqueMoves.length === 2) {
-    const [moveA, moveB] = uniqueMoves;
-    let winningMove;
-    if (beats[moveA] === moveB) winningMove = moveA;
-    else winningMove = moveB;
+  Object.keys(moves).forEach(player => {
+    if (moves[player] === winningMove) winners.push(player);
+  });
 
-    Object.keys(moves).forEach(player => {
-      if (moves[player] === winningMove) winners.push(player);
-    });
-
-    return { text: winners.join(", ") + " win!", winners };
-  }
-
-  return { text: "Tie!", winners: [] };
+  return { text: winners.join(", ") + " win! 🎉", winners };
 }
 </script>
 </head>
-
 <body>
 <h1>Rock Paper Scissors 🎀</h1>
 
@@ -250,7 +225,7 @@ function determineWinner(moves) {
 <h3 id="status"></h3>
 <pre id="moves-status"></pre>
 <h3 id="scores"></h3>
-<h3 id="result"></h3>
+<h3 id="winner-text"></h3>
 <pre id="choices-output"></pre>
 
 </body>
